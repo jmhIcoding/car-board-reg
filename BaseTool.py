@@ -19,6 +19,7 @@ class data_generator:
 
         self.train_set = []             #保存训练集的下标
         self.train_batch_index = 0
+        self.train_epoch =0
         self.valid_set = []             #保存验证集的下标
         self.valid_batch_index = 0
         self.test_set = []              #保存测试集的下标
@@ -34,9 +35,11 @@ class data_generator:
     def load_train(self):
         for rt,dirs,files in os.walk(self.train_dir):
             self.classes = max(self.classes,len(dirs))
+
             if len(dirs)==0 :
                 #说明到了叶子目录,里面放着就是图片
                 label = int(rt.split('\\')[-1])
+
                 for name in files:
                     img_filename = os.path.join(rt,name)
                     vec = img2mat(img_filename)
@@ -53,6 +56,7 @@ class data_generator:
             if len(dirs)==0 :
                 #说明到了叶子目录,里面放着就是图片
                 label = int(rt.split('\\')[-1])
+                #print(label,self.data_set_cnt)
                 for name in files:
                     img_filename = os.path.join(rt,name)
                     vec = img2mat(img_filename)
@@ -68,38 +72,44 @@ class data_generator:
         input_y =[]
         for i in range(batch):
             input_x.append(self.data_vector_set[self.train_set[(self.train_batch_index + i)%len(self.train_set)]])
-            y = [0] * self.classes
+            y = [0] * 34
             y[self.data_label_set[self.train_set[(self.train_batch_index +i)%len(self.train_set)]]] = 1
             input_y.append(y)
         self.train_batch_index +=batch
+        if self.train_batch_index > len(self.train_set) :
+            self.train_epoch +=1
         self.train_batch_index %=len(self.train_set)
-        return  input_x,input_y
+        return  input_x,input_y,self.train_epoch
 
     def next_valid_batch(self,batch=100):
         input_x =[]
         input_y =[]
         for i in range(batch):
-            input_x.append(self.data_vector_set[self.valid_set[(self.valid_batch_index + i)%len(self.valid_set)]])
-            y = [0] * self.classes
-            y[self.data_label_set[self.valid_set[(self.valid_batch_index +i)%(len(self.valid_set))]]] = 1
+            index = random.randint(0,len(self.valid_set)-1)
+            input_x.append(self.data_vector_set[index])
+            y = [0] * 34
+            y[self.data_label_set[index]] = 1
             input_y.append(y)
         self.valid_batch_index +=batch
+
         self.valid_batch_index %=len(self.valid_set)
-        return  input_x,input_y
+        return  input_x,input_y,self.train_epoch
     def next_test_batch(self,batch=100):
         input_x =[]
         input_y =[]
         for i in range(batch):
             input_x.append(self.data_vector_set[self.test_set[(self.test_batch_index + i)%len(self.test_set)]])
-            y = [0] * self.classes
+            y = [0] * 34
             y[self.data_label_set[self.test_set[(self.test_batch_index +i)%(len(self.test_set))]]] = 1
             input_y.append(y)
         self.test_batch_index +=batch
+        if self.test_batch_index > len(self.test_set) :
+            self.train_epoch +=1
         self.test_batch_index %=len(self.test_set)
-        return  input_x,input_y
+        return  input_x,input_y,self.train_epoch
 if __name__ == '__main__':
     data_gen = data_generator()
     print(len(data_gen.test_set))
-    print(data_gen.next_train_batch(50))
-    print(data_gen.next_valid_batch(50)[1])
-    print(data_gen.next_train_batch(30))
+    print(data_gen.next_train_batch(100))
+    print(data_gen.next_valid_batch(100))
+    print(data_gen.next_test_batch(100))
