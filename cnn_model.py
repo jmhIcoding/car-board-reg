@@ -3,12 +3,13 @@ import  tensorflow as tf
 from BaseTool import  data_generator
 
 batch_size = 100        # 每个batch的大小
-learning_rate=1e-4      #学习速率
+lr=0.001      # 学习速率,每20个epoch 减少为原来的80%
 aspect = "letter"
 data_gen = data_generator(aspect)
 
 input_x  =tf.placeholder(dtype=tf.float32,shape=[None,20,20],name='input_x')
 input_y  =tf.placeholder(dtype=tf.float32,shape=[None,34],name='input_y')
+input_learning_rate = tf.placeholder(dtype=tf.float32,name='learning_rate')
 
 with tf.name_scope('conv1'):
     W_C1 = tf.Variable(tf.truncated_normal(shape=[3,3,1,32],stddev=0.1))
@@ -45,7 +46,7 @@ with tf.name_scope('output'):
     logits = tf.matmul(out_F4,W_OUTPUT)+b_OUTPUT
 
 loss = tf.reduce_sum(tf.nn.softmax_cross_entropy_with_logits(labels=input_y,logits=logits))
-train_op = tf.train.AdamOptimizer(learning_rate).minimize(loss)
+train_op = tf.train.AdamOptimizer(learning_rate=input_learning_rate).minimize(loss)
 predictY = tf.nn.softmax(logits)
 y_pred=tf.arg_max(predictY,1)
 bool_pred=tf.equal(tf.arg_max(input_y,1),y_pred)
@@ -61,32 +62,35 @@ def load_model(sess,dir,modelname):
         print("*"*30)
 def save_model(sess,dir,modelname):
     saver.save(sess,dir+modelname)
-dir = r".//parameter//%s//"%aspect
+dir = r".\\parameter\\%s\\"%aspect
 modelname = aspect
 
 with tf.Session() as sess:
     sess.run(tf.initialize_all_variables())
     step = 1
     display_interval=200
-    max_epoch = 100
-    epoch = 0
+    max_epoch = 500
+    epoch = 1
     acc = 0
     load_model(sess,dir=dir,modelname=modelname)
     while True  :
         if step % display_interval ==0:
             image_batch,label_batch,epoch = data_gen.next_valid_batch(batch_size)
-            acc = sess.run(right_rate,feed_dict={input_x:image_batch,input_y:label_batch})
+            acc = sess.run(right_rate,feed_dict={input_x:image_batch,input_y:label_batch,input_learning_rate:lr})
             print({'!'*30+str(epoch)+":"+str(step):acc})
         image_batch,label_batch,epoch = data_gen.next_train_batch(batch_size)
         sess.run([loss,train_op],{input_x:image_batch,input_y:label_batch})
         if(epoch> max_epoch):
             break
         step +=1
+        if (epoch % 20) ==0:
+            lr =lr * 0.8
     while True :
         test_img,test_lab,test_epoch = data_gen.next_test_batch(batch_size)
-        test_acc = sess.run(right_rate,{input_x:test_img,input_y:test_lab})
+        test_acc = sess.run(right_rate,feed_dict={input_x:test_img,input_y:test_lab,input_learning_rate:lr})
         acc = test_acc * 0.8 + acc * 0.2    #指数滑动平均
         if(test_epoch!=epoch):
             print({"Test Over..... acc:":acc})
             break
+
     save_model(sess,dir,modelname)
